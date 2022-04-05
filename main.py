@@ -1,5 +1,7 @@
 import glob
 import importlib
+import os
+from textwrap import dedent
 
 import ujson
 import uvloop
@@ -18,27 +20,64 @@ class AppConfig(Config):
 class App(Sanic):
     def __init__(self, *args, **kwargs):
         super().__init__("App", config=AppConfig(), *args, **kwargs)
-        logger.info("[App]: Initializing application...")
+        logger.info("Initializing application...")
 
         for route in glob.glob("./routes/*.py"):
+            if "__" in route:
+                continue
+
             self.blueprint(
                 importlib.import_module(route[2:-3].replace("/", ".")).router
             )
-            logger.info(f"[App]: Successfully loaded route '{route}'")
+            logger.info(f"Registered route '{route}' successfully")
 
-        api_routes = []
-        for api_route in glob.glob("./routes/api/*.py"):
-            api_routes.append(
-                importlib.import_module(api_route[2:-3].replace("/", ".")).router
+        for subfolder in glob.glob("./routes/*/"):
+            if "__" in subfolder:
+                continue
+
+            logger.info(f"Detected route subfolder: {subfolder}")
+            routes = []
+            for route in glob.glob(f"{subfolder}*.py"):
+                routes.append(
+                    importlib.import_module(route[2:-3].replace("/", ".")).router
+                )
+                logger.info(f"Detected route '{route}' in '{subfolder}'")
+
+            self.blueprint(
+                Blueprint.group(
+                    routes, url_prefix=f"/{os.path.basename(subfolder[:-1])}"
+                )
             )
-            logger.info(f"[App]: Successfully loaded API route '{api_route}'")
+            logger.info(f"Registered route subfolder '{subfolder}' successfully")
 
-        self.blueprint(Blueprint.group(api_routes, url_prefix="/api"))
+        self.extend(
+            config={
+                "cors_origins": "*",
+                "oas_ui_default": "swagger",
+                "oas_ui_redoc": False,
+            }
+        )
+        self.ext.openapi.describe(
+            title="My Awesome API",
+            version="1.0.0",
+            description=dedent(
+                """
+            Welcome to my very awesome API!\n
+            You can explore the different endpoints below in the docs.
+            """
+            ),
+        )
+        self.ext.openapi.add_security_scheme(
+            ident="token",
+            type="http",
+            scheme="bearer",
+            description="API bearer token authentication method",
+        )
 
         self.run(
             host=self.config.HOST,
             port=self.config.PORT,
-            debug=self.config.DEV_MODE,
+            dev=self.config.DEV_MODE,
             ssl=self.config.get("SSL_CERTS_FOLDER"),
             fast=not self.config.DEV_MODE,
             access_log=self.config.DEV_MODE,
