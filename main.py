@@ -8,19 +8,27 @@ import uvloop
 from sanic import Blueprint, Sanic
 from sanic.config import Config
 from sanic.log import logger
+from tortoise import Tortoise
 
 
 class AppConfig(Config):
     def __init__(self):
         super().__init__()
         with open("./config.json") as f:
-            self.update_config(ujson.load(f))
+            config = ujson.load(f)
+            if not all(k in config for k in ("HOST", "PORT", "DEV_MODE", "DB_URL")):
+                raise ValueError("Configuration is incomplete!")
+
+            self.update_config(config)
 
 
 class App(Sanic):
     def __init__(self, *args, **kwargs):
         super().__init__("App", config=AppConfig(), *args, **kwargs)
         logger.info("Initializing application...")
+
+        self.register_listener(self.init_orm, "before_server_start")
+        self.register_listener(self.uninit_orm, "after_server_stop")
 
         for route in glob.glob("./routes/*.py"):
             if "__" in route:
@@ -82,6 +90,16 @@ class App(Sanic):
             fast=not self.config.DEV_MODE,
             access_log=self.config.DEV_MODE,
         )
+
+    async def init_orm(self, _app, _loop):
+        await Tortoise.init(db_url=self.config.DB_URL, modules={"models": ["models"]})
+        # Optional; will generate database schemas
+        await Tortoise.generate_schemas()
+        logger.info("Initialized database ORM")
+
+    async def uninit_orm(self, _app, _loop):
+        await Tortoise.close_connections()
+        logger.info("Uninitialized database ORM")
 
 
 if __name__ == "__main__":
