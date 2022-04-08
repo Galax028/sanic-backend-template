@@ -89,6 +89,7 @@ class App(Sanic):
             ssl=self.config.get("SSL_CERTS_FOLDER"),
             fast=not self.config.DEV_MODE,
             access_log=self.config.DEV_MODE,
+            motd=False,
         )
 
     async def init_orm(self, _app, _loop):
