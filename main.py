@@ -92,13 +92,13 @@ class App(Sanic):
             motd=False,
         )
 
-    async def init_orm(self, _app, _loop):
+    async def init_orm(self, _app):
         await Tortoise.init(db_url=self.config.DB_URL, modules={"models": ["models"]})
         # Optional; will generate database schemas
         await Tortoise.generate_schemas()
         logger.info("Initialized database ORM")
 
-    async def uninit_orm(self, _app, _loop):
+    async def uninit_orm(self, _app):
         await Tortoise.close_connections()
         logger.info("Uninitialized database ORM")
 
