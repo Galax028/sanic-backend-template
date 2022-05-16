@@ -8,7 +8,7 @@ fi
 PROJECT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 echo "Initializing a virtual environment..."
 $1 -m venv venv
-source $PROJECT_DIR/venv/bin/activate
+source "$PROJECT_DIR/venv/bin/activate"
 echo "Done! Installing pip dependencies..."
-$PROJECT_DIR/venv/bin/pip install -r requirements.txt
+"$PROJECT_DIR/venv/bin/pip" install -r requirements.txt
 echo "Done! Setup completed."
